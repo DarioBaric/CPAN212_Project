@@ -1,21 +1,21 @@
 const express = require("express");
-const mongoose = require("mongoose"); // Importing the dependency once
-const session = require("express-session");
-const MongoStore = require("connect-mongo");
+const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const path = require("path");
 const PORT = process.env.PORT || 8000;
 const app = express();
-const fs = require("fs");
 dotenv.config();
+
+// Enable CORS for all routes
+app.use(cors());
 
 /* Project setup: For the server
 1 - new project folder
 2 - open an integrated terminal
 3 - run these commands:
     npm init -y
-    npm i express nodemon mongoose
+    npm i express nodemon mongoose cors
 */
 
 // Adding our MongoDB database
@@ -44,7 +44,7 @@ app.get("/", (req, res) => {
 
 const Product = require("./models/products");
 
-app.get("/fetch-all-products", async (req, res) => {
+app.get("/api/fetch-all-products", async (req, res) => {
   try {
     const products = await Product.find();
     res.json(products); // Return the fetched products as JSON
@@ -53,7 +53,7 @@ app.get("/fetch-all-products", async (req, res) => {
   }
 });
 
-app.get("/fetch-all-products-promises", (req, res) => {
+app.get("/api/fetch-all-products-promises", (req, res) => {
   Product.find()
     .then((products) => {
       res.json(products); // Return the fetched products as JSON
@@ -63,7 +63,7 @@ app.get("/fetch-all-products-promises", (req, res) => {
     });
 });
 
-app.get("/fetch-filter-products", (req, res) => {
+app.get("/api/fetch-filter-products", (req, res) => {
   let filters = {}; // Create an empty object to later append any new responses
 
   // Check for title, description, ratings, and product_section
@@ -92,7 +92,7 @@ app.get("/fetch-filter-products", (req, res) => {
     });
 });
 
-app.get("/product/:id", (req, res) => {
+app.get("/api/product/:id", (req, res) => {
   const productId = req.params.id;
 
   Product.findById(productId)
@@ -107,7 +107,7 @@ app.get("/product/:id", (req, res) => {
     });
 });
 
-app.post("/save-product", async (req, res) => {
+app.post("/api/save-product", async (req, res) => {
   const { title, description, image, ratings, product_section } = req.body;
   console.log(req.body);
 
@@ -129,7 +129,7 @@ app.post("/save-product", async (req, res) => {
     });
 });
 
-app.delete("/delete-product", (req, res) => {
+app.delete("/api/delete-product", (req, res) => {
   const productId = req.body._id;
 
   Product.deleteOne({ _id: productId })
@@ -150,4 +150,37 @@ app.listen(PORT, () => {
 
 app.use("", (req, res) => {
   res.status(404).send("Page not found");
+});
+
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, 'client/build')));
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname + '/client/build/index.html'));
+});
+
+app.get("/api/fetch-filter-products", (req, res) => {
+  let filters = {};
+
+  // Check for title, description, ratings, and product_section
+  if (req.query.title) {
+      filters.title = req.query.title;
+  }
+  if (req.query.description) {
+      filters.description = req.query.description;
+  }
+  if (req.query.ratings) {
+      filters.ratings = parseFloat(req.query.ratings);
+  }
+  if (req.query.product_section) {
+      filters.product_section = req.query.product_section;
+  }
+
+  Product.find(filters)
+      .then((products) => {
+          res.json(products);
+      })
+      .catch((err) => {
+          res.status(500).send(err);
+      });
 });
